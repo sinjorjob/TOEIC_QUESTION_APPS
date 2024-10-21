@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TOEIC問題自動生成AIアプリ</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.9.1/gsap.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+        :root {
+            --primary: #A100FF;
+            --secondary: #00BCF2;
+            --accent: #FF3E96;
+            --background: #F2F2F2;
+            --text: #333333;
+            --card-bg: #16213E;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            background-color: var(--background);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .background-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        .floating-word {
+            position: absolute;
+            font-size: 18px;
+            font-weight: bold;
+            opacity: 0.4;
+            pointer-events: none;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .quiz-container {
+            max-width: 600px;
+            margin: 40px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        h2 {
+            color: var(--primary);
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background-color: var(--background);
+            border-radius: 3px;
+            margin-bottom: 20px;
+            overflow: hidden;
+        }
+
+        .progress {
+            height: 100%;
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+
+        .situation {
+            font-style: italic;
+            color: var(--text);
+            margin-bottom: 10px;
+            padding: 10px;
+            background: linear-gradient(45deg, rgba(161, 0, 255, 0.1), rgba(0, 188, 242, 0.1));
+            border-radius: 10px;
+        }
+
+        .question {
+            font-size: 18px;
+            margin-bottom: 15px;
+            padding: 20px;
+            background-color: #1e1e1e;
+            color: #e0e0e0;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            font-family: 'Courier New', monospace;
+            position: relative;
+        }
+
+        .choices {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .choice {
+            background-color: white;
+            border: 2px solid var(--secondary);
+            border-radius: 15px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .choice:hover {
+            background-color: rgba(0, 188, 242, 0.1);
+        }
+
+        .choice.selected {
+            background: linear-gradient(45deg, rgba(161, 0, 255, 0.1), rgba(0, 188, 242, 0.1));
+            border-color: var(--primary);
+        }
+
+        .btn {
+            background: linear-gradient(45deg, var(--primary), var(--secondary));
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            text-align: center;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            border-radius: 15px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            background: linear-gradient(45deg, var(--secondary), var(--primary));
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .feedback {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 15px;
+            background: linear-gradient(45deg, rgba(161, 0, 255, 0.05), rgba(0, 188, 242, 0.05));
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+
+        .feedback.correct {
+            border-left: 6px solid #4CAF50;
+        }
+
+        .feedback.incorrect {
+            border-left: 6px solid var(--accent);
+        }
+
+        .explanation h2 {
+            color: var(--primary);
+            font-size: 1.2em;
+            margin-top: 15px;
+            margin-bottom: 10px;
+            text-align: left;
+            display: block;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 0.25em 0.4em;
+            font-size: 75%;
+            font-weight: 700;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.25rem;
+            margin-right: 5px;
+        }
+        .badge-primary {
+            color: #fff;
+            background-color: var(--primary);
+        }
+        .badge-secondary {
+            color: #fff;
+            background-color: var(--secondary);
+        }
+
+        .category-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 20px;
+            margin-top: 2rem;
+        }
+        
+        .category-card {
+            background: var(--card-bg);
+            border-radius: 15px;
+            padding: 1rem;
+            width: 250px;
+            height: 130px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .category-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+        }
+        
+        .category-card i {
+            font-size: 2.5rem;
+            color: var(--primary);
+            margin-bottom: 0.5rem;
+        }
+        
+        .category-card h3 {
+            color: white;
+            font-size: 0.8rem;
+            margin: 0 0 0.3rem;
+            text-align: center;
+        }
+        
+        .category-card p {
+            font-size: 0.8rem;
+            color: white;
+            opacity: 0.8;
+            margin: 0;
+        }
+
+        .progress-bar, .situation, .question-container, .controls {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="background-animation"></div>
+    <div class="quiz-container">
+        <h2><i class="fas fa-pencil-alt"></i> TOEIC練習問題</h2>
+        <div class="category-container">
+            <!-- カテゴリカードがここに動的に挿入されます -->
+        </div>
+        <div class="progress-bar">
+            <div class="progress"></div>
+        </div>
+        <div class="situation"></div>
+        <div class="question-container">
+            <!-- 問題が動的に挿入されます -->
+        </div>
+        <div class="controls">
+            <button id="submit-btn" class="btn"><i class="fas fa-check"></i> 答え合わせ</button>
+            <button id="next-btn" class="btn" style="display: none;"><i class="fas fa-arrow-right"></i> 次の問題</button>
+        </div>
+    </div>
+    <div id="results" class="results-container" style="display: none;">
+        <h2><i class="fas fa-trophy"></i> クイズ完了！</h2>
+        <p>あなたのスコア: <span id="score"></span></p>
+        <button id="restart-btn" class="btn"><i class="fas fa-redo"></i> もう一度挑戦</button>
+    </div>
+
+    <script src="questions.js"></script>
+    <script>
+        marked.setOptions({ breaks: true, gfm: true });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const categoryContainer = document.querySelector('.category-container');
+            const questionContainer = document.querySelector('.question-container');
+            const situationElement = document.querySelector('.situation');
+            const submitBtn = document.getElementById('submit-btn');
+            const nextBtn = document.getElementById('next-btn');
+            const progressBar = document.querySelector('.progress-bar');
+            const resultsContainer = document.getElementById('results');
+            const scoreElement = document.getElementById('score');
+            const restartBtn = document.getElementById('restart-btn');
+        
+            let currentQuestionIndex = 0;
+            let score = 0;
+            let currentQuestions = [];
+        
+            function loadCategories() {
+                categoryContainer.innerHTML = categories.map(category => `
+                    <div class="category-card" data-category-id="${category.id}">
+                        <i class="fas ${category.icon}"></i>
+                        <h3>${category.name}</h3>
+                        <p>${questions.filter(q => q.category === category.name).length} 問</p>
+                    </div>
+                `).join('');
+
+                document.querySelectorAll('.category-card').forEach(card => {
+                    card.addEventListener('click', () => loadQuestionsByCategory(card.dataset.categoryId));
+                });
+            }
+        
+            function loadQuestionsByCategory(categoryId) {
+                const category = categories.find(c => c.id == categoryId);
+                currentQuestions = questions.filter(q => q.category === category.name);
+                if (currentQuestions.length === 0) {
+                    questionContainer.innerHTML = `<p>この分野には問題がありません。</p>`;
+                    return;
+                }
+                currentQuestionIndex = 0;
+                score = 0;
+                categoryContainer.style.display = 'none';
+                progressBar.style.display = 'block';
+                situationElement.style.display = 'block';
+                questionContainer.style.display = 'block';
+                document.querySelector('.controls').style.display = 'block';
+                showQuestion();
+            }
+        
+            function showQuestion() {
+                const question = currentQuestions[currentQuestionIndex];
+                const progressPercent = ((currentQuestionIndex + 1) / currentQuestions.length) * 100;
+        
+                situationElement.innerHTML = `<i class="fas fa-lightbulb"></i> シチュエーション: ${question.situation}`;
+                questionContainer.innerHTML = `
+                    <div class="badges">
+                        <span class="badge badge-primary">${question.category}</span>
+                        <span class="badge badge-secondary">${question.target_level}点</span>
+                    </div>
+                    <div class="question">${question.question_text}</div>
+                    <div class="choices">
+                        ${Object.entries(question.choices).map(([key, value]) => `
+                            <div class="choice" data-choice="${key}">
+                                <strong>${key}:</strong> ${value}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+        
+                document.querySelector('.progress').style.width = `${progressPercent}%`;
+        
+                document.querySelectorAll('.choice').forEach(choice => {
+                    choice.addEventListener('click', selectChoice);
+                });
+        
+                submitBtn.style.display = 'inline-block';
+                nextBtn.style.display = 'none';
+            }
+        
+            function selectChoice(e) {
+                document.querySelectorAll('.choice').forEach(c => c.classList.remove('selected'));
+                e.currentTarget.classList.add('selected');
+            }
+        
+            function checkAnswer() {
+                const selectedChoice = document.querySelector('.choice.selected');
+                if (!selectedChoice) {
+                    alert('選択肢を選んでください。');
+                    return;
+                }
+        
+                const userAnswer = selectedChoice.dataset.choice;
+                const question = currentQuestions[currentQuestionIndex];
+                const isCorrect = userAnswer === question.correct_answer;
+        
+                if (isCorrect) score++;
+        
+                const feedbackElement = document.createElement('div');
+                feedbackElement.classList.add('feedback', isCorrect ? 'correct' : 'incorrect');
+        
+                const explanation = marked.parse(question.explanation);
+        
+                feedbackElement.innerHTML = `
+                    <p>${isCorrect ? '<i class="fas fa-check-circle"></i> 正解！' : '<i class="fas fa-times-circle"></i> 不正解。'}</p>
+                    <p>正解: ${question.correct_answer}. ${question.choices[question.correct_answer]}</p>
+                    <div class="explanation">
+                        ${explanation}
+                    </div>
+                `;
+        
+                questionContainer.appendChild(feedbackElement);
+                submitBtn.style.display = 'none';
+                nextBtn.style.display = 'inline-block';
+            }
+        
+            function nextQuestion() {
+                currentQuestionIndex++;
+                if (currentQuestionIndex < currentQuestions.length) {
+                    showQuestion();
+                } else {
+                    showResults();
+                }
+            }
+        
+            function showResults() {
+                document.querySelector('.quiz-container').style.display = 'none';
+                resultsContainer.style.display = 'block';
+                scoreElement.textContent = `${score} / ${currentQuestions.length}`;
+            }
+        
+            function restartQuiz() {
+                categoryContainer.style.display = 'flex';
+                document.querySelector('.quiz-container').style.display = 'block';
+                resultsContainer.style.display = 'none';
+                questionContainer.innerHTML = '';
+                document.querySelector('.progress').style.width = '0%';
+                progressBar.style.display = 'none';
+                situationElement.style.display = 'none';
+                document.querySelector('.controls').style.display = 'none';
+            }
+        
+            submitBtn.addEventListener('click', checkAnswer);
+            nextBtn.addEventListener('click', nextQuestion);
+            restartBtn.addEventListener('click', restartQuiz);
+        
+            loadCategories();
+        });
+
+        // Floating words animation
+        const words = ['TOEIC', 'English', 'Study', 'Success', 'Learn', 'Achieve', 'Goal', 'Practice', 'Vocabulary', 'Grammar', 'Listening', 'Reading', 'Speaking', 'Writing', 'Business', 'Communication'];
+        const colors = ['#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F7DB4F', '#FF85A2', '#7FB800'];
+        const backgroundAnimation = document.querySelector('.background-animation');
+
+        for (let i = 0; i < 50; i++) {
+            const span = document.createElement('span');
+            const randomWord = words[Math.floor(Math.random() * words.length)];
+            span.textContent = randomWord;
+            span.classList.add('floating-word');
+            span.style.left = `${Math.random() * 100}%`;
+            span.style.top = `${Math.random() * 100}%`;
+            span.style.color = colors[Math.floor(Math.random() * colors.length)];
+            backgroundAnimation.appendChild(span);
+
+            gsap.to(span, {
+                x: 'random(-100, 100)',
+                y: 'random(-100, 100)',
+                rotation: 'random(-45, 45)',
+                duration: 'random(10, 20)',
+                repeat: -1,
+                yoyo: true,
+                ease: 'sine.inOut'
+            });
+        }
+    </script>
+</body>
+</html>
